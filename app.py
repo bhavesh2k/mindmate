@@ -9,6 +9,7 @@ import pandas as pd
 import altair as alt
 from textblob import TextBlob
 
+# generate advice based on journal entry
 def generate_advice(entry, tags):
     suggestions = []
 
@@ -38,6 +39,20 @@ def generate_advice(entry, tags):
         suggestions.append("Keep tracking your feelings — awareness is the first step to balance.")
 
     return suggestions
+
+# generate advice based on the mood (1-5)
+def generate_reflection_from_mood(mood_rating: int) -> str:
+    mood_rating = int(mood_rating)
+    if mood_rating <= 2:
+        return "It's okay to have tough days. Take it easy and be kind to yourself today. Even small steps matter."
+    elif mood_rating == 3:
+        return "You're hanging in there. Maybe try a short walk or talk to a friend to recharge a bit."
+    elif mood_rating == 4:
+        return "You're doing well! Keep up the good energy and consider reflecting on what made today a good one."
+    elif mood_rating == 5:
+        return "You're thriving today — that's amazing! Think about how to carry this momentum forward."
+    else:
+        return "How you're feeling matters. Stay aware and take care of yourself."
 
 # Load key from secrets
 firebase_key_dict = json.loads(st.secrets["FIREBASE_KEY_JSON"])
@@ -136,20 +151,27 @@ if data:
     st.altair_chart(chart, use_container_width=True)
 
     st.subheader("🧠 AI Reflection")
-    last_entry = df.iloc[-1]["entry"]
-    if last_entry:
-        tone = TextBlob(last_entry).sentiment.polarity
-        mood_msg = "You seem positive 😊" if tone > 0.2 else (
-            "You may be feeling low 💭" if tone < -0.2 else "You're feeling neutral 🌿")
-        st.info(f"Last journal tone: **{mood_msg}**")
+    last_mood_score = df.iloc[-1]["score"]
+    reflection = generate_reflection_from_mood(last_mood_score)
+    mood_emojis = {
+        1: "😞 Very Low",
+        2: "😕 Low",
+        3: "😐 Neutral",
+        4: "🙂 Good",
+        5: "😄 Great"
+    }
 
-        # add advice from last journal entry
-        st.subheader("💡 Advice based on Your Recent Thoughts")
-        last_tags = df.iloc[-1]["tags"]
-        last_text = df.iloc[-1]["entry"]
-        advice = generate_advice(last_text, last_tags)
-        for tip in advice:
-            st.markdown(f"✅ {tip}")
+    st.markdown(f"**Last mood:** {mood_emojis.get(last_mood_score, 'Unknown')} ({last_mood_score})")
+    st.info(reflection)
+    
+
+    # add advice from last journal entry
+    st.subheader("💡 Advice based on Your Recent Thoughts")
+    last_tags = df.iloc[-1]["tags"]
+    last_text = df.iloc[-1]["entry"]
+    advice = generate_advice(last_text, last_tags)
+    for tip in advice:
+        st.markdown(f"✅ {tip}")
 
 if st.button("Logout"):
     del st.session_state.user_email
