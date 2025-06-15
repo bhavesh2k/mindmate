@@ -141,7 +141,7 @@ def show_dashboard():
 if st.button("Save Entry"):
     log_ref = db.collection("mood_logs").document(user_id).collection("logs")
     log_ref.add({
-        "timestamp": datetime.datetime.now(),
+        "timestamp": datetime.datetime.utcnow(),
         "mood": mood,
         "score": moods[mood],
         "entry": entry,
