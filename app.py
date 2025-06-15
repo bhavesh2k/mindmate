@@ -118,18 +118,19 @@ def show_dashboard():
         df['date'] = df['timestamp'].dt.date
 
         # 🧠 Advice for just-saved entry
-        if "last_saved_entry" in st.session_state and st.session_state["last_saved_entry"].strip():
+        if "last_saved_entry" in st.session_state or "last_saved_tags" in st.session_state:
             st.subheader("💡 MindMate Advice")
             advice_list = generate_advice(
-                st.session_state["last_saved_entry"], 
+                st.session_state.get("last_saved_entry", ""), 
                 st.session_state.get("last_saved_tags", [])
             )
             for a in advice_list:
                 st.markdown(f"✅ {a}")
 
-            # Clear state after showing advice once
-            del st.session_state["last_saved_entry"]
-            del st.session_state["last_saved_tags"]
+            # Clear session after displaying advice
+            st.session_state.pop("last_saved_entry", None)
+            st.session_state.pop("last_saved_tags", None)
+
 
         st.subheader("📈 Mood Over Time")
         chart = alt.Chart(df).mark_line(point=True).encode(
