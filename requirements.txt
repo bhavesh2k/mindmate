@@ -1,6 +1,6 @@
 streamlit
 pyrebase4
-firebase-admin
+firebase-admin>=6.0.1
 pandas
 altair
 textblob
