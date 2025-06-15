@@ -98,6 +98,7 @@ tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()] if tag_input
 if st.button("Save Entry"):
     if not entry.strip():
         st.error("⚠️ Please write something in your journal before submitting.")
+        st.rerun()
 
     log_ref = db.collection("mood_logs").document(user_id).collection("logs")
     log_ref.add({
