@@ -1,6 +1,6 @@
 import streamlit as st
 import firebase_admin
-from firebase_admin import credentials, auth, firestore, initialize_app, get_app
+from firebase_admin import credentials, auth, firestore
 import datetime
 import time
 import os
@@ -9,11 +9,10 @@ import pandas as pd
 import altair as alt
 from textblob import TextBlob
 
-# generate advice based on journal entry
+# Generate advice based on journal entry and tags
 def generate_advice(entry, tags):
     suggestions = []
 
-    # Analyze tone using TextBlob
     polarity = TextBlob(entry).sentiment.polarity
     if polarity < -0.3:
         suggestions.append("It seems you're feeling down. Consider taking a short walk or talking to someone you trust.")
@@ -22,7 +21,6 @@ def generate_advice(entry, tags):
     elif polarity > 0.4:
         suggestions.append("You're feeling upbeat! Celebrate small wins to keep that energy going.")
 
-    # Tag-based suggestions
     tag_list = [tag.strip().lower() for tag in tags if tag]
     if "stress" in tag_list:
         suggestions.append("Try a 5-minute breathing exercise to reduce stress.")
@@ -40,7 +38,7 @@ def generate_advice(entry, tags):
 
     return suggestions
 
-# generate advice based on the mood (1-5)
+# AI Reflection based on last mood score
 def generate_reflection_from_mood(mood_rating: int) -> str:
     mood_rating = int(mood_rating)
     if mood_rating <= 2:
@@ -54,11 +52,10 @@ def generate_reflection_from_mood(mood_rating: int) -> str:
     else:
         return "How you're feeling matters. Stay aware and take care of yourself."
 
-# Load key from secrets
+# Firebase init
 firebase_key_dict = json.loads(st.secrets["FIREBASE_KEY_JSON"])
 cred = credentials.Certificate(firebase_key_dict)
 
-# Initialize app only if not already done
 try:
     firebase_admin.get_app()
 except ValueError:
@@ -66,11 +63,10 @@ except ValueError:
 
 db = firestore.client()
 
-# Session state
+# Session
 if "user_email" not in st.session_state:
     st.session_state.user_email = None
 
-# Login or Register
 def login_page():
     st.title("🧠 MindMate – Login")
     option = st.selectbox("Select option", ["Login", "Register"])
@@ -83,33 +79,64 @@ def login_page():
                 user = auth.create_user(email=email, password=password)
                 st.success("Registered successfully! Please login.")
             else:
-                # Simulate login (firebase-admin has no client-side auth)
                 st.session_state.user_email = email
                 st.success("Logged in successfully!")
                 time.sleep(1)
-                st.rerun()  # 🔁 This will reload the app and show the dashboard
+                st.rerun()
         except Exception as e:
             st.error(str(e))
-
 
 if not st.session_state.user_email:
     login_page()
     st.stop()
 
-# Mood Logger
 st.title("🧠 MindMate – Your Wellness Dashboard")
 
-user_id = st.session_state.user_email.replace(".", "_")  # Firestore safe
+user_id = st.session_state.user_email.replace(".", "_")
 moods = {"😄": 5, "🙂": 4, "😐": 3, "😕": 2, "😞": 1}
 mood = st.radio("How do you feel today?", list(moods.keys()), horizontal=True)
 entry = st.text_area("Write a journal entry (optional)")
-tag_input = st.text_input(
-    "Add tags", 
-    placeholder="e.g., anxiety, sleep, motivation"
-)
+tag_input = st.text_input("Add tags", placeholder="e.g., anxiety, sleep, motivation")
 
-# Convert to list after user inputs
 tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()] if tag_input else []
+
+def show_dashboard():
+    logs_ref = db.collection("mood_logs").document(user_id).collection("logs")
+    docs = logs_ref.order_by("timestamp").stream()
+    data = [{
+        "timestamp": doc.to_dict()["timestamp"],
+        "mood": doc.to_dict()["mood"],
+        "score": doc.to_dict()["score"],
+        "entry": doc.to_dict().get("entry", ""),
+        "tags": doc.to_dict().get("tags", [])
+    } for doc in docs]
+
+    if data:
+        df = pd.DataFrame(data)
+        df = df.sort_values(by="timestamp", ascending=True)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['date'] = df['timestamp'].dt.date
+
+        st.subheader("📈 Mood Over Time")
+        chart = alt.Chart(df).mark_line(point=True).encode(
+            x='date:T', y='score:Q', tooltip=['mood', 'entry']
+        ).properties(height=300)
+        st.altair_chart(chart, use_container_width=True)
+
+        st.subheader("🧠 AI Reflection Based on Mood")
+        last_mood_score = df.iloc[-1]["score"]
+
+        reflection = generate_reflection_from_mood(last_mood_score)
+        mood_emojis = {
+            1: "😞 Very Low",
+            2: "😕 Low",
+            3: "😐 Neutral",
+            4: "🙂 Good",
+            5: "😄 Great"
+        }
+
+        st.markdown(f"**Last mood:** {mood_emojis.get(last_mood_score, 'Unknown')} ({last_mood_score})")
+        st.info(reflection)
 
 if st.button("Save Entry"):
     log_ref = db.collection("mood_logs").document(user_id).collection("logs")
@@ -122,57 +149,16 @@ if st.button("Save Entry"):
     })
     st.success("Mood saved!")
 
-    # AI Advice Generator
-    advice_list = generate_advice(entry, tags)
-    st.subheader("💡 MindMate Advice")
-    for a in advice_list:
-        st.markdown(f"✅ {a}")
+    if entry.strip():
+        st.subheader("💡 MindMate Advice")
+        for a in generate_advice(entry, tags):
+            st.markdown(f"✅ {a}")
 
-# Fetch Logs
-logs_ref = db.collection("mood_logs").document(user_id).collection("logs")
-docs = logs_ref.order_by("timestamp").stream()
-data = [{
-    "timestamp": doc.to_dict()["timestamp"],
-    "mood": doc.to_dict()["mood"],
-    "score": doc.to_dict()["score"],
-    "entry": doc.to_dict().get("entry", ""),
-    "tags": doc.to_dict().get("tags", "")
-} for doc in docs]
+    show_dashboard()
+    st.stop()
 
-if data:
-    df = pd.DataFrame(data)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    df['date'] = df['timestamp'].dt.date
-    df = df.sort_values(by="timestamp", ascending=True)
-
-    st.subheader("📈 Mood Over Time")
-    chart = alt.Chart(df).mark_line(point=True).encode(
-        x='date:T', y='score:Q', tooltip=['mood', 'entry']
-    ).properties(height=300)
-    st.altair_chart(chart, use_container_width=True)
-
-    st.subheader("🧠 AI Reflection")
-    last_mood_score = df.iloc[-1]["score"]
-    reflection = generate_reflection_from_mood(last_mood_score)
-    mood_emojis = {
-        1: "😞 Very Low",
-        2: "😕 Low",
-        3: "😐 Neutral",
-        4: "🙂 Good",
-        5: "😄 Great"
-    }
-
-    st.markdown(f"**Last mood:** {mood_emojis.get(last_mood_score, 'Unknown')} ({last_mood_score})")
-    st.info(reflection)
-    
-
-    # add advice from last journal entry
-    st.subheader("💡 Advice based on Your Recent Thoughts")
-    last_tags = df.iloc[-1]["tags"]
-    last_text = df.iloc[-1]["entry"]
-    advice = generate_advice(last_text, last_tags)
-    for tip in advice:
-        st.markdown(f"✅ {tip}")
+# Show dashboard by default
+show_dashboard()
 
 if st.button("Logout"):
     del st.session_state.user_email
