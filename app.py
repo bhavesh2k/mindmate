@@ -94,13 +94,12 @@ tag_input = st.text_input(
 )
 
 # Cleanly convert to list whether it's one or many tags
-if st.button("Submit Entry"):
+if st.button("Save Entry"):
     if not entry.strip():
         st.error("⚠️ Please write something in your journal before submitting.")
     else:
         tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()]
 
-if st.button("Save Entry"):
     log_ref = db.collection("mood_logs").document(user_id).collection("logs")
     log_ref.add({
         "timestamp": datetime.datetime.now(),
