@@ -144,7 +144,7 @@ if data:
         st.info(f"Last journal tone: **{mood_msg}**")
 
         # add advice from last journal entry
-        st.subheader("💡 Personalized Advice from your Journal")
+        st.subheader("💡 Advice based on Your Recent Thoughts")
         last_tags = df.iloc[-1]["tags"]
         last_text = df.iloc[-1]["entry"]
         advice = generate_advice(last_text, last_tags)
