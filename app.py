@@ -87,7 +87,7 @@ st.subheader("Daily Journal")
 user_id = st.session_state.user_email.replace(".", "_")  # Firestore safe   
 moods = {"😄": 5, "🙂": 4, "😐": 3, "😕": 2, "😞": 1}
 mood = st.radio("How do you feel today?", list(moods.keys()), horizontal=True)
-entry = st.text_area("Write about your day*", placeholder="What’s on your mind?")
+entry = st.text_area("Write about your day *", placeholder="What’s on your mind?")
 tag_input = st.text_input(
     "Add tags", 
     placeholder="e.g., anxiety, sleep, motivation"
