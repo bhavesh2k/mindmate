@@ -1,6 +1,6 @@
 import streamlit as st
 import firebase_admin
-from firebase_admin import credentials, auth, firestore, initialize_app
+from firebase_admin import credentials, auth, firestore, initialize_app, get_app, get_apps
 import datetime
 import time
 import os
@@ -39,10 +39,15 @@ def generate_advice(entry, tags):
 
     return suggestions
 
-# Load key from env and convert it to dict
+# Load key from secrets
 firebase_key_dict = json.loads(st.secrets["FIREBASE_KEY_JSON"])
 cred = credentials.Certificate(firebase_key_dict)
-firebase_app = initialize_app(cred)
+
+# Initialize app only if not already done
+if not get_apps():
+    firebase_app = initialize_app(cred)
+else:
+    firebase_app = get_app()
 
 db = firestore.client()
 
