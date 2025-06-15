@@ -1,8 +1,11 @@
 import streamlit as st
 import firebase_admin
-from firebase_admin import credentials, auth, firestore
+from firebase_admin import credentials, auth, firestore, initialize_app
 import datetime
 import time
+import os
+import json
+from dotenv import load_dotenv
 import pandas as pd
 import altair as alt
 from textblob import TextBlob
@@ -37,11 +40,20 @@ def generate_advice(entry, tags):
 
     return suggestions
 
-# Initialize Firebase only once
+load_dotenv()
+
+# Load key from env and convert it to dict
+firebase_key_dict = json.loads(os.getenv("FIREBASE_KEY_JSON"))
+
+# Use it as credential
+cred = credentials.Certificate(firebase_key_dict)
+firebase_app = initialize_app(cred)
+
+'''# Initialize Firebase only once
 if not firebase_admin._apps:
     cred = credentials.Certificate("serviceAccountKey.json")
     firebase_admin.initialize_app(cred)
-
+'''
 db = firestore.client()
 
 # Session state
