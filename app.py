@@ -94,11 +94,7 @@ tag_input = st.text_input(
 )
 
 # Convert to list after user inputs
-if tag_input:
-    tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()]
-    st.write("✅ Tags recognized:", tags)
-else:
-    tags = []
+tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()] if tag_input else []
 
 if st.button("Save Entry"):
     log_ref = db.collection("mood_logs").document(user_id).collection("logs")
