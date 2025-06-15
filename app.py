@@ -1,80 +1,145 @@
-# MindMate: Streamlit App for Mental Wellbeing
-
 import streamlit as st
-import pandas as pd
+import firebase_admin
+from firebase_admin import credentials, auth, firestore
 import datetime
-from textblob import TextBlob
+import time
+import pandas as pd
 import altair as alt
+from textblob import TextBlob
 
-# Initialize mood log CSV
-MOOD_FILE = "mood_logs.csv"
+def generate_advice(entry, tags):
+    suggestions = []
 
-# Emojis for mood selection
-MOODS = {"😄": 5, "🙂": 4, "😐": 3, "😕": 2, "😞": 1}
+    # Analyze tone using TextBlob
+    polarity = TextBlob(entry).sentiment.polarity
+    if polarity < -0.3:
+        suggestions.append("It seems you're feeling down. Consider taking a short walk or talking to someone you trust.")
+    elif polarity < 0:
+        suggestions.append("You may be slightly low. Maybe try journaling your thoughts in more detail.")
+    elif polarity > 0.4:
+        suggestions.append("You're feeling upbeat! Celebrate small wins to keep that energy going.")
 
-# Load or create mood logs
-def load_data():
-    try:
-        return pd.read_csv(MOOD_FILE, parse_dates=["timestamp"])
-    except:
-        return pd.DataFrame(columns=["timestamp", "mood", "score", "entry", "tags"])
+    # Tag-based suggestions
+    tag_list = [tag.strip().lower() for tag in tags.split(",") if tag]
+    if "stress" in tag_list:
+        suggestions.append("Try a 5-minute breathing exercise to reduce stress.")
+    if "sleep" in tag_list:
+        suggestions.append("Consider winding down early and avoiding screens before bed.")
+    if "work" in tag_list:
+        suggestions.append("Take short breaks during your work hours to maintain focus.")
+    if "anxiety" in tag_list:
+        suggestions.append("Write down what's worrying you — sometimes clarity comes through expression.")
+    if "focus" in tag_list:
+        suggestions.append("Try the Pomodoro technique (25 min focus, 5 min rest).")
 
-def save_data(df):
-    df.to_csv(MOOD_FILE, index=False)
+    if not suggestions:
+        suggestions.append("Keep tracking your feelings — awareness is the first step to balance.")
 
-st.set_page_config(page_title="MindMate", layout="centered", page_icon="🧠")
-st.title("🧠 MindMate – Your Daily Mental Wellness Companion")
+    return suggestions
 
-st.header("1. How are you feeling today?")
-col1, col2 = st.columns([1, 2])
+# Initialize Firebase only once
+if not firebase_admin._apps:
+    cred = credentials.Certificate("serviceAccountKey.json")
+    firebase_admin.initialize_app(cred)
 
-with col1:
-    mood = st.radio("Select your mood:", options=list(MOODS.keys()), horizontal=True)
-with col2:
-    entry = st.text_area("Write a short journal entry (optional):")
-    tags = st.text_input("Add tags (comma-separated, e.g., anxiety, focus):")
+db = firestore.client()
+
+# Session state
+if "user_email" not in st.session_state:
+    st.session_state.user_email = None
+
+# Login or Register
+def login_page():
+    st.title("🧠 MindMate – Login")
+    option = st.selectbox("Select option", ["Login", "Register"])
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+    
+    if st.button(option):
+        try:
+            if option == "Register":
+                user = auth.create_user(email=email, password=password)
+                st.success("Registered successfully! Please login.")
+            else:
+                # Simulate login (firebase-admin has no client-side auth)
+                st.session_state.user_email = email
+                st.success("Logged in successfully!")
+                time.sleep(1)
+                st.rerun()  # 🔁 This will reload the app and show the dashboard
+        except Exception as e:
+            st.error(str(e))
+
+
+if not st.session_state.user_email:
+    login_page()
+    st.stop()
+
+# Mood Logger
+st.title("🧠 MindMate – Your Wellness Dashboard")
+
+user_id = st.session_state.user_email.replace(".", "_")  # Firestore safe
+moods = {"😄": 5, "🙂": 4, "😐": 3, "😕": 2, "😞": 1}
+mood = st.radio("How do you feel today?", list(moods.keys()), horizontal=True)
+entry = st.text_area("Write a journal entry (optional)")
+tags = st.text_input("Add tags (comma separated)")
 
 if st.button("Save Entry"):
-    data = load_data()
-    new_entry = {
+    log_ref = db.collection("mood_logs").document(user_id).collection("logs")
+    log_ref.add({
         "timestamp": datetime.datetime.now(),
         "mood": mood,
-        "score": MOODS[mood],
+        "score": moods[mood],
         "entry": entry,
         "tags": tags
-    }
-    data = pd.concat([data, pd.DataFrame([new_entry])], ignore_index=True)
-    save_data(data)
-    st.success("Your mood has been logged. Great job checking in! 💖")
+    })
+    st.success("Mood saved!")
 
-st.header("2. Mood Trends & Reflections")
-data = load_data()
-if not data.empty:
-    data["date"] = data["timestamp"].dt.date
-    mood_chart = alt.Chart(data).mark_line(point=True).encode(
-        x="date:T", y="score:Q", tooltip=["date", "mood", "entry"]
+    # AI Advice Generator
+    advice_list = generate_advice(entry, tags)
+    st.subheader("💡 MindMate Advice")
+    for a in advice_list:
+        st.markdown(f"✅ {a}")
+
+# Fetch Logs
+logs_ref = db.collection("mood_logs").document(user_id).collection("logs")
+docs = logs_ref.order_by("timestamp").stream()
+data = [{
+    "timestamp": doc.to_dict()["timestamp"],
+    "mood": doc.to_dict()["mood"],
+    "score": doc.to_dict()["score"],
+    "entry": doc.to_dict().get("entry", ""),
+    "tags": doc.to_dict().get("tags", "")
+} for doc in docs]
+
+if data:
+    df = pd.DataFrame(data)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['date'] = df['timestamp'].dt.date
+
+    st.subheader("📈 Mood Over Time")
+    chart = alt.Chart(df).mark_line(point=True).encode(
+        x='date:T', y='score:Q', tooltip=['mood', 'entry']
     ).properties(height=300)
-    st.altair_chart(mood_chart, use_container_width=True)
+    st.altair_chart(chart, use_container_width=True)
 
-    # Word cloud or text summary
-    if st.checkbox("Show AI Reflection"):
-        recent_entry = data.iloc[-1]["entry"]
-        if recent_entry:
-            blob = TextBlob(recent_entry)
-            tone = blob.sentiment.polarity
-            summary = "You seem positive today 😊" if tone > 0.2 else (
-                      "You may be feeling a bit down 💭" if tone < -0.2 else
-                      "You're feeling neutral 🌿")
-            st.markdown(f"**Latest Entry Tone:** {summary}")
-else:
-    st.info("No mood data yet. Log your first mood above!")
+    st.subheader("🧠 AI Reflection")
+    last_entry = df.iloc[-1]["entry"]
+    if last_entry:
+        tone = TextBlob(last_entry).sentiment.polarity
+        mood_msg = "You seem positive 😊" if tone > 0.2 else (
+            "You may be feeling low 💭" if tone < -0.2 else "You're feeling neutral 🌿")
+        st.info(f"Last journal tone: **{mood_msg}**")
 
-st.header("3. Mindfulness Corner")
-st.markdown("Listen to a short calming track or ambient soundscape:")
-st.video("https://www.youtube.com/embed/2OEL4P1Rz04")
+        # add advice from last journal entry
+        st.subheader("💡 Personalized Advice from your Journal")
+        last_tags = df.iloc[-1]["tags"]
+        last_text = df.iloc[-1]["entry"]
+        advice = generate_advice(last_text, last_tags)
+        for tip in advice:
+            st.markdown(f"✅ {tip}")
 
-st.header("4. Self-Care Checklist")
-for habit in ["💧 Drink water", "🚶‍♂️ Take a 10-minute walk", "📞 Call a friend", "🧘‍♀️ 3-minute breathing"]:
-    st.checkbox(habit)
-
-st.caption("Built with 💙 by Bhavesh using Streamlit")
+if st.button("Logout"):
+    del st.session_state.user_email
+    st.success("Logged out successfully!")
+    time.sleep(1)
+    st.rerun()
