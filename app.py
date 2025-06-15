@@ -118,7 +118,7 @@ def show_dashboard():
         df['date'] = df['timestamp'].dt.date
 
         # 🧠 Advice for just-saved entry
-        if "last_saved_entry" in st.session_state or st.session_state["last_saved_entry"].strip():
+        if "last_saved_entry" in st.session_state and st.session_state["last_saved_entry"].strip():
             st.subheader("💡 MindMate Advice")
             advice_list = generate_advice(
                 st.session_state["last_saved_entry"], 
