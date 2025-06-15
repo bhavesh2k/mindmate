@@ -88,7 +88,10 @@ user_id = st.session_state.user_email.replace(".", "_")  # Firestore safe
 moods = {"😄": 5, "🙂": 4, "😐": 3, "😕": 2, "😞": 1}
 mood = st.radio("How do you feel today?", list(moods.keys()), horizontal=True)
 entry = st.text_area("Write a journal entry (optional)")
-tags = st.text_input("Add tags (comma separated)")
+tags = st.text_input(
+    "Add tags", 
+    placeholder="e.g., anxiety, sleep, motivation"
+)
 
 if st.button("Save Entry"):
     log_ref = db.collection("mood_logs").document(user_id).collection("logs")
