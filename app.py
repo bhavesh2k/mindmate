@@ -22,7 +22,7 @@ def generate_advice(entry, tags):
         suggestions.append("You're feeling upbeat! Celebrate small wins to keep that energy going.")
 
     # Tag-based suggestions
-    tag_list = [tag.strip().lower() for tag in tags.split(",") if tag]
+    tag_list = [tag.strip().lower() for tag in tags if tag]
     if "stress" in tag_list:
         suggestions.append("Try a 5-minute breathing exercise to reduce stress.")
     if "sleep" in tag_list:
@@ -145,7 +145,7 @@ if data:
         st.info(f"Last journal tone: **{mood_msg}**")
 
         # add advice from last journal entry
-        st.subheader("💡 Personalized Advice from your Journal")
+        st.subheader("💡 Personalized Advice based on your Recent Thoughts")
         last_tags = df.iloc[-1]["tags"]
         last_text = df.iloc[-1]["entry"]
         advice = generate_advice(last_text, last_tags)
