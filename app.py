@@ -92,13 +92,12 @@ tag_input = st.text_input(
     "Add tags", 
     placeholder="e.g., anxiety, sleep, motivation"
 )
+tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()] if tag_input else []
 
 # Cleanly convert to list whether it's one or many tags
 if st.button("Save Entry"):
     if not entry.strip():
         st.error("⚠️ Please write something in your journal before submitting.")
-    else:
-        tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()]
 
     log_ref = db.collection("mood_logs").document(user_id).collection("logs")
     log_ref.add({
