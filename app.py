@@ -120,14 +120,21 @@ def show_dashboard():
         # 🧠 Advice for just-saved entry
         if "last_saved_entry" in st.session_state or "last_saved_tags" in st.session_state:
             st.subheader("💡 MindMate Advice")
-            advice_list = generate_advice(
-                st.session_state.get("last_saved_entry", ""), 
-                st.session_state.get("last_saved_tags", [])
-            )
+
+            entry_text = st.session_state.get("last_saved_entry", "")
+            entry_tags = st.session_state.get("last_saved_tags", [])
+
+            # If journal is empty, still show mood-based reflection
+            if entry_text.strip() == "":
+                last_mood_score = df.iloc[-1]["score"]
+                st.markdown(f"✅ {generate_reflection_from_mood(last_mood_score)}")
+
+            # Show tag or text-based advice
+            advice_list = generate_advice(entry_text, entry_tags)
             for a in advice_list:
                 st.markdown(f"✅ {a}")
 
-            # Clear session after displaying advice
+            # Clear session values
             st.session_state.pop("last_saved_entry", None)
             st.session_state.pop("last_saved_tags", None)
 
