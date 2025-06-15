@@ -143,6 +143,7 @@ if data:
     df = pd.DataFrame(data)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
     df['date'] = df['timestamp'].dt.date
+    df = df.sort_values(by="timestamp", ascending=True)
 
     st.subheader("📈 Mood Over Time")
     chart = alt.Chart(df).mark_line(point=True).encode(
