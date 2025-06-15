@@ -82,20 +82,23 @@ if not st.session_state.user_email:
     st.stop()
 
 # Mood Logger
-st.title("🧠 MindMate – Your Wellness Dashboard")
-
-user_id = st.session_state.user_email.replace(".", "_")  # Firestore safe
+st.title("🧠 MindMate")
+st.subheader("Daily Journal")
+user_id = st.session_state.user_email.replace(".", "_")  # Firestore safe   
 moods = {"😄": 5, "🙂": 4, "😐": 3, "😕": 2, "😞": 1}
 mood = st.radio("How do you feel today?", list(moods.keys()), horizontal=True)
-entry = st.text_area("Write a journal entry (optional)")
+entry = st.text_area("Write about your day ", placeholder="What’s on your mind?")
 tag_input = st.text_input(
     "Add tags", 
     placeholder="e.g., anxiety, sleep, motivation"
 )
 
 # Cleanly convert to list whether it's one or many tags
-tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()] if tag_input else []
-
+if st.button("Submit Entry"):
+    if not entry.strip():
+        st.error("⚠️ Please write something in your journal before submitting.")
+    else:
+        tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()]
 
 if st.button("Save Entry"):
     log_ref = db.collection("mood_logs").document(user_id).collection("logs")
@@ -106,7 +109,7 @@ if st.button("Save Entry"):
         "entry": entry,
         "tags": tags
     })
-    st.success("Mood saved!")
+    st.success("✅ Your journal entry has been saved.")
 
     # AI Advice Generator
     advice_list = generate_advice(entry, tags)
