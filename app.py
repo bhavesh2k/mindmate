@@ -1,6 +1,6 @@
 import streamlit as st
 import firebase_admin
-from firebase_admin import credentials, auth, firestore, initialize_app, get_app, get_apps
+from firebase_admin import credentials, auth, firestore, initialize_app, get_app
 import datetime
 import time
 import os
@@ -44,10 +44,10 @@ firebase_key_dict = json.loads(st.secrets["FIREBASE_KEY_JSON"])
 cred = credentials.Certificate(firebase_key_dict)
 
 # Initialize app only if not already done
-if not get_apps():
-    firebase_app = initialize_app(cred)
-else:
-    firebase_app = get_app()
+try:
+    firebase_admin.get_app()
+except ValueError:
+    firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
