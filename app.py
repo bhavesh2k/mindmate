@@ -148,6 +148,8 @@ if st.button("Save Entry"):
         "tags": tags
     })
     st.success("Mood saved!")
+    time.sleep(0.5)
+    st.rerun()  # 🔁 reload the full app with updated logs
 
     if entry.strip():
         st.subheader("💡 MindMate Advice")
