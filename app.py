@@ -123,6 +123,21 @@ def show_dashboard():
         ).properties(height=300)
         st.altair_chart(chart, use_container_width=True)
 
+        # 🧠 Advice for just-saved entry
+        if "last_saved_entry" in st.session_state and st.session_state["last_saved_entry"].strip():
+            st.subheader("💡 MindMate Advice")
+            advice_list = generate_advice(
+                st.session_state["last_saved_entry"], 
+                st.session_state.get("last_saved_tags", [])
+            )
+            for a in advice_list:
+                st.markdown(f"✅ {a}")
+
+            # Clear state after showing advice once
+            del st.session_state["last_saved_entry"]
+            del st.session_state["last_saved_tags"]
+
+
         st.subheader("🧠 AI Reflection Based on Mood")
         last_mood_score = df.iloc[-1]["score"]
 
@@ -147,17 +162,14 @@ if st.button("Save Entry"):
         "entry": entry,
         "tags": tags
     })
+
+    # Store last entry in session
+    st.session_state.last_saved_entry = entry
+    st.session_state.last_saved_tags = tags
+
     st.success("Mood saved!")
     time.sleep(0.5)
-    st.rerun()  # 🔁 reload the full app with updated logs
-
-    if entry.strip():
-        st.subheader("💡 MindMate Advice")
-        for a in generate_advice(entry, tags):
-            st.markdown(f"✅ {a}")
-
-    show_dashboard()
-    st.stop()
+    st.rerun()  # reload the full app with updated logs
 
 # Show dashboard by default
 show_dashboard()
