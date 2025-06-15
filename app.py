@@ -117,12 +117,6 @@ def show_dashboard():
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         df['date'] = df['timestamp'].dt.date
 
-        st.subheader("📈 Mood Over Time")
-        chart = alt.Chart(df).mark_line(point=True).encode(
-            x='date:T', y='score:Q', tooltip=['mood', 'entry']
-        ).properties(height=300)
-        st.altair_chart(chart, use_container_width=True)
-
         # 🧠 Advice for just-saved entry
         if "last_saved_entry" in st.session_state and st.session_state["last_saved_entry"].strip():
             st.subheader("💡 MindMate Advice")
@@ -137,6 +131,11 @@ def show_dashboard():
             del st.session_state["last_saved_entry"]
             del st.session_state["last_saved_tags"]
 
+        st.subheader("📈 Mood Over Time")
+        chart = alt.Chart(df).mark_line(point=True).encode(
+            x='date:T', y='score:Q', tooltip=['mood', 'entry']
+        ).properties(height=300)
+        st.altair_chart(chart, use_container_width=True)
 
         st.subheader("🧠 AI Reflection Based on Mood")
         last_mood_score = df.iloc[-1]["score"]
