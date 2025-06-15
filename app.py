@@ -94,10 +94,8 @@ tag_input = st.text_input(
 )
 tags = [tag.strip() for tag in tag_input.split(',') if tag.strip()] if tag_input else []
 
-submit_disabled = not entry.strip()
-
 # Cleanly convert to list whether it's one or many tags
-if st.button("Save Entry", disabled=submit_disabled):
+if st.button("Save Entry"):
     if not entry.strip():
         st.error("⚠️ Please write something in your journal before submitting.")
 
