@@ -22,7 +22,7 @@ def generate_advice(entry, tags):
         suggestions.append("You're feeling upbeat! Celebrate small wins to keep that energy going.")
 
     # Tag-based suggestions
-    tag_list = [tag.strip().lower() for tag in tags.split(",") if tag]
+    tag_list = [tag.strip().lower() for tag in tags if tag]
     if "stress" in tag_list:
         suggestions.append("Try a 5-minute breathing exercise to reduce stress.")
     if "sleep" in tag_list:
